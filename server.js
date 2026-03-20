@@ -47,6 +47,13 @@ app.use((req, _res, next) => {
 // Webhook endpoint (Plane.so → đây)
 // ─────────────────────────────────────────────
 app.post("/webhook", handleWebhook);
+app.get("/webhook", (_req, res) => {
+  res.json({
+    status: "READY",
+    message: "Webhook endpoint is active. Use POST for actual webhooks.",
+    integration: "Plane.so -> Discord"
+  });
+});
 
 // ─────────────────────────────────────────────
 // API Endpoints cho Dashboard
