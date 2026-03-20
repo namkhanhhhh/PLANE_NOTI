@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Plane → Discord Notifier</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #0a0b0e;
+      --bg-secondary: #111318;
+      --bg-card: #161b27;
+      --bg-card-hover: #1c2236;
+      --bg-glass: rgba(22, 27, 39, 0.8);
+      --border: rgba(255, 255, 255, 0.06);
+      --border-active: rgba(99, 102, 241, 0.4);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted: #475569;
+      --accent: #6366f1;
+      --accent-light: #818cf8;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --green: #10b981;
+      --green-glow: rgba(16, 185, 129, 0.15);
+      --red: #ef4444;
+      --red-glow: rgba(239, 68, 68, 0.15);
+      --yellow: #f59e0b;
+      --yellow-glow: rgba(245, 158, 11, 0.12);
+      --discord: #5865f2;
+      --plane: #d946ef;
+      --radius: 12px;
+      --radius-sm: 8px;
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+      --shadow-glow: 0 0 40px rgba(99, 102, 241, 0.08);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Background ambient glow */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -30%;
+      left: -20%;
+      width: 60%;
+      height: 60%;
+      background: radial-gradient(ellipse, rgba(99, 102, 241, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    body::after {
+      content: '';
+      position: fixed;
+      bottom: -20%;
+      right: -10%;
+      width: 50%;
+      height: 50%;
+      background: radial-gradient(ellipse, rgba(217, 70, 239, 0.05) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+    /* ── Header ── */
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(10, 11, 14, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+    }
+
+    .header-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+      background: linear-gradient(135deg, var(--accent), var(--plane));
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+      flex-shrink: 0;
+    }
+
+    .logo-text {
+      font-size: 1rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #fff 0%, var(--accent-light) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .logo-sub {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .header-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      background: var(--green-glow);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+      border-radius: 100px;
+      font-size: 0.78rem;
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--green);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.85); }
+    }
+
+    /* ── Layout ── */
+    main {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 2.5rem 2rem;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 2.5rem 0 3rem;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 14px;
+      background: var(--accent-glow);
+      border: 1px solid var(--border-active);
+      border-radius: 100px;
+      font-size: 0.75rem;
+      color: var(--accent-light);
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 {
+      font-size: clamp(2rem, 4vw, 3rem);
+      font-weight: 800;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #fff 0%, rgba(255,255,255,0.7) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+
+    .hero h1 span {
+      background: linear-gradient(135deg, var(--accent) 0%, var(--plane) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      color: var(--text-secondary);
+      font-size: 1.05rem;
+      max-width: 520px;
+      margin: 0 auto 2rem;
+      line-height: 1.6;
+    }
+
+    /* Webhook URL highlight */
+    .webhook-url-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-active);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      max-width: 560px;
+      margin: 0 auto;
+      box-shadow: 0 0 30px var(--accent-glow);
+    }
+
+    .webhook-url-box span {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--accent-light);
+      flex: 1;
+      text-align: left;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .copy-btn {
+      padding: 6px 14px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 0.78rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .copy-btn:hover { background: var(--accent-light); transform: translateY(-1px); }
+    .copy-btn:active { transform: translateY(0); }
+
+    /* ── Stats Grid ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.25s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .stat-card:hover { border-color: var(--border-active); background: var(--bg-card-hover); }
+    .stat-card:hover::before { opacity: 1; }
+
+    .stat-icon { font-size: 1.4rem; }
+    .stat-value {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      line-height: 1;
+    }
+    .stat-label { font-size: 0.8rem; color: var(--text-muted); font-weight: 500; }
+
+    /* ── Section ── */
+    .section { margin-bottom: 2.5rem; }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+      gap: 1rem;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .section-title .icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+    }
+
+    .icon-purple { background: var(--accent-glow); border: 1px solid var(--border-active); }
+    .icon-green { background: var(--green-glow); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .icon-discord { background: rgba(88, 101, 242, 0.12); border: 1px solid rgba(88, 101, 242, 0.2); }
+
+    /* ── Card ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .card-body { padding: 1.5rem; }
+
+    /* ── Info Grid ── */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+
+    .info-item {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1rem 1.25rem;
+    }
+
+    .info-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .info-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      word-break: break-all;
+    }
+
+    .info-value.good { color: var(--green); }
+    .info-value.warn { color: var(--yellow); }
+    .info-value.bad { color: var(--red); }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 9px 18px;
+      border-radius: var(--radius-sm);
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      font-family: 'Inter', sans-serif;
+      text-decoration: none;
+    }
+
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-accent { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; }
+    .btn-discord { background: linear-gradient(135deg, var(--discord), #4752c4); color: #fff; }
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+    }
+    .btn-outline:hover { border-color: var(--border-active); color: var(--text-primary); }
+
+    .btn-sm { padding: 6px 12px; font-size: 0.78rem; }
+
+    /* ── Test Actions ── */
+    .test-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+    }
+
+    .test-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color 0.2s;
+    }
+    .test-card:hover { border-color: var(--border-active); }
+
+    .test-card-title { font-size: 0.9rem; font-weight: 600; }
+    .test-card-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* ── Simulate form ── */
+    .simulate-form {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 8px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-primary);
+      font-size: 0.82rem;
+      font-family: 'Inter', sans-serif;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input[type="text"]:focus { border-color: var(--border-active); }
+    input[type="text"]::placeholder { color: var(--text-muted); }
+
+    /* ── Event Log ── */
+    .log-empty {
+      text-align: center;
+      padding: 3rem;
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .log-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    .log-table thead tr {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .log-table th {
+      padding: 10px 16px;
+      text-align: left;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .log-table td {
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .log-table tbody tr:last-child td { border-bottom: none; }
+    .log-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 100px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+
+    .badge-success { background: var(--green-glow); color: var(--green); border: 1px solid rgba(16, 185, 129, 0.2); }
+    .badge-error { background: var(--red-glow); color: var(--red); border: 1px solid rgba(239, 68, 68, 0.2); }
+    .badge-info { background: var(--accent-glow); color: var(--accent-light); border: 1px solid var(--border-active); }
+    .badge-warn { background: var(--yellow-glow); color: var(--yellow); border: 1px solid rgba(245, 158, 11, 0.2); }
+
+    /* ── Toast ── */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 360px;
+    }
+
+    .toast {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      box-shadow: var(--shadow);
+      animation: slideIn 0.3s ease;
+      cursor: pointer;
+    }
+
+    .toast-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .toast-content { flex: 1; }
+    .toast-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 2px; }
+    .toast-msg { font-size: 0.78rem; color: var(--text-secondary); line-height: 1.4; }
+
+    .toast.success { border-color: rgba(16, 185, 129, 0.3); }
+    .toast.error { border-color: rgba(239, 68, 68, 0.3); }
+    .toast.info { border-color: var(--border-active); }
+
+    @keyframes slideIn {
+      from { transform: translateX(120%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes fadeOut {
+      to { transform: translateX(110%); opacity: 0; }
+    }
+
+    /* ── Setup Guide ── */
+    .steps {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+    }
+
+    .step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 1.25rem 1.5rem;
+      background: var(--bg-secondary);
+      transition: background 0.2s;
+    }
+
+    .step:first-child { border-radius: var(--radius-sm) var(--radius-sm) 0 0; }
+    .step:last-child { border-radius: 0 0 var(--radius-sm) var(--radius-sm); }
+
+    .step-num {
+      width: 28px;
+      height: 28px;
+      background: var(--accent-glow);
+      border: 1px solid var(--border-active);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--accent-light);
+      flex-shrink: 0;
+    }
+
+    .step-content { flex: 1; }
+    .step-title { font-size: 0.9rem; font-weight: 600; margin-bottom: 4px; }
+    .step-desc { font-size: 0.8rem; color: var(--text-muted); line-height: 1.5; }
+
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(255,255,255,0.06);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.85em;
+      color: var(--accent-light);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      main { padding: 1.5rem 1rem; }
+      .form-row { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <div class="logo-icon">🚀</div>
+      <div>
+        <div class="logo-text">Plane → Discord</div>
+        <div class="logo-sub">Webhook Notifier</div>
+      </div>
+    </a>
+    <div class="header-status">
+      <div class="status-dot"></div>
+      <span id="serverStatus">Đang kết nối...</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-badge">⚡ Tự động hoá thông báo</div>
+    <h1>Plane.so → <span>Discord</span><br/>Notifier</h1>
+    <p>Nhận thông báo ngay lập tức khi có work item mới được tạo trên Plane.so, gửi đến Discord của bạn.</p>
+
+    <div class="webhook-url-box">
+      <span id="webhookEndpoint">http://localhost:3000/webhook</span>
+      <button class="copy-btn" onclick="copyWebhookUrl()">📋 Copy</button>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-icon">📥</div>
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-label">Tổng events nhận</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">✅</div>
+      <div class="stat-value" id="statSuccess">—</div>
+      <div class="stat-label">Thành công</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">❌</div>
+      <div class="stat-value" id="statError">—</div>
+      <div class="stat-label">Lỗi</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon">⏱️</div>
+      <div class="stat-value" id="statUptime">—</div>
+      <div class="stat-label">Uptime</div>
+    </div>
+  </div>
+
+  <!-- Cấu hình -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="icon icon-purple">⚙️</div>
+        Thông tin cấu hình
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="loadConfig()">🔄 Làm mới</button>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="info-grid" id="configGrid">
+          <div class="info-item">
+            <div class="info-label">Plane API URL</div>
+            <div class="info-value" id="cfgPlaneUrl">Đang tải...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Workspace Slug</div>
+            <div class="info-value" id="cfgWorkspace">Đang tải...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Plane API Token</div>
+            <div class="info-value" id="cfgToken">Đang tải...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Discord Webhook</div>
+            <div class="info-value" id="cfgDiscord">Đang tải...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Webhook Secret</div>
+            <div class="info-value" id="cfgSecret">Đang tải...</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Server Port</div>
+            <div class="info-value" id="cfgPort">Đang tải...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Test Actions -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="icon icon-green">🧪</div>
+        Kiểm tra kết nối
+      </div>
+    </div>
+    <div class="test-grid">
+      <!-- Test Discord -->
+      <div class="test-card">
+        <div class="test-card-title">🎮 Test Discord Webhook</div>
+        <div class="test-card-desc">Gửi một tin nhắn thử nghiệm đến Discord channel của bạn để kiểm tra kết nối.</div>
+        <button class="btn btn-discord" onclick="testDiscord()" id="btnTestDiscord">
+          📤 Gửi test message
+        </button>
+      </div>
+
+      <!-- Test Plane -->
+      <div class="test-card">
+        <div class="test-card-title">✈️ Test Plane API</div>
+        <div class="test-card-desc">Kiểm tra kết nối đến Plane.so API và lấy danh sách projects trong workspace.</div>
+        <button class="btn btn-accent" onclick="testPlane()" id="btnTestPlane">
+          🔍 Kiểm tra Plane API
+        </button>
+      </div>
+
+      <!-- Simulate -->
+      <div class="test-card" style="grid-column: 1 / -1">
+        <div class="test-card-title">🎭 Simulate Work Item Event</div>
+        <div class="test-card-desc">Giả lập việc tạo issue để kiểm tra luồng xử lý và gửi thông báo Discord.</div>
+        <div class="simulate-form">
+          <div class="form-row">
+            <input type="text" id="simWorkspace" placeholder="workspace-slug" />
+            <input type="text" id="simProject" placeholder="project-id (UUID)" />
+            <input type="text" id="simIssue" placeholder="issue-id (UUID)" />
+          </div>
+          <button class="btn btn-outline" onclick="simulateEvent()" id="btnSimulate">
+            ⚡ Chạy thử
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event Log -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="icon icon-discord">📋</div>
+        Lịch sử Events
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="loadLogs()">🔄 Làm mới</button>
+    </div>
+    <div class="card">
+      <div id="logsContainer">
+        <div class="log-empty">Chưa có event nào. Đang chờ webhook từ Plane.so...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Setup Guide -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="icon icon-purple">📖</div>
+        Hướng dẫn cài đặt
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <div class="steps">
+          <div class="step">
+            <div class="step-num">1</div>
+            <div class="step-content">
+              <div class="step-title">Cấu hình file <code>.env</code></div>
+              <div class="step-desc">
+                Điền đầy đủ thông tin vào file <code>.env</code>: Plane API Token, Workspace Slug, và Discord Webhook URL.
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">2</div>
+            <div class="step-content">
+              <div class="step-title">Expose server ra internet (dùng ngrok hoặc tương tự)</div>
+              <div class="step-desc">
+                Plane cần URL công khai để gửi webhook. Dùng: <code>ngrok http 3000</code> → lấy URL dạng <code>https://xxxx.ngrok.io</code>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">3</div>
+            <div class="step-content">
+              <div class="step-title">Cấu hình Webhook trên Plane.so</div>
+              <div class="step-desc">
+                Vào <strong>Settings → Webhooks</strong> trong workspace Plane → Thêm URL: <code>https://your-url.ngrok.io/webhook</code> → Chọn event <strong>Issues</strong>
+              </div>
+            </div>
+          </div>
+          <div class="step">
+            <div class="step-num">4</div>
+            <div class="step-content">
+              <div class="step-title">Test kết nối</div>
+              <div class="step-desc">
+                Dùng các nút test ở trên để xác nhận Discord và Plane API đều hoạt động, sau đó tạo thử một work item trên Plane để xem thông báo!
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<div id="toast-container"></div>
+
+<script>
+  // ─── Toast System ─────────────────────────────────────────────────────────
+  function showToast(type, title, msg) {
+    const container = document.getElementById('toast-container');
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warn: '⚠️' };
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `
+      <div class="toast-icon">${icons[type] || icons.info}</div>
+      <div class="toast-content">
+        <div class="toast-title">${title}</div>
+        <div class="toast-msg">${msg}</div>
+      </div>`;
+    toast.onclick = () => toast.remove();
+    container.appendChild(toast);
+    setTimeout(() => {
+      toast.style.animation = 'fadeOut 0.3s ease forwards';
+      setTimeout(() => toast.remove(), 300);
+    }, 4000);
+  }
+
+  // ─── Helpers ──────────────────────────────────────────────────────────────
+  function setLoading(btnId, loading) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = loading;
+    btn.style.opacity = loading ? '0.6' : '1';
+  }
+
+  function copyWebhookUrl() {
+    const url = document.getElementById('webhookEndpoint').textContent;
+    navigator.clipboard.writeText(url).then(() => {
+      showToast('success', 'Đã copy!', 'Webhook URL đã được copy vào clipboard');
+    });
+  }
+
+  // ─── Load Config ──────────────────────────────────────────────────────────
+  async function loadConfig() {
+    try {
+      const r = await fetch('/api/config');
+      const cfg = await r.json();
+
+      document.getElementById('cfgPlaneUrl').textContent = cfg.planeBaseUrl || '—';
+      document.getElementById('cfgWorkspace').textContent = cfg.planeWorkspaceSlug || '⚠️ Chưa cấu hình';
+      document.getElementById('cfgWorkspace').className = 'info-value ' + (cfg.planeWorkspaceSlug ? 'good' : 'warn');
+
+      document.getElementById('cfgToken').textContent = cfg.planeApiToken || '⚠️ Chưa cấu hình';
+      document.getElementById('cfgToken').className = 'info-value ' + (cfg.planeApiToken ? 'good' : 'warn');
+
+      document.getElementById('cfgDiscord').textContent = cfg.discordWebhookConfigured ? '✅ Đã cấu hình' : '❌ Chưa cấu hình';
+      document.getElementById('cfgDiscord').className = 'info-value ' + (cfg.discordWebhookConfigured ? 'good' : 'bad');
+
+      document.getElementById('cfgSecret').textContent = cfg.webhookSecret;
+      document.getElementById('cfgPort').textContent = cfg.port;
+
+      // Update webhook URL box with actual port
+      document.getElementById('webhookEndpoint').textContent =
+        `${window.location.origin}/webhook`;
+
+      // Pre-fill simulate form
+      if (cfg.planeWorkspaceSlug) {
+        document.getElementById('simWorkspace').value = cfg.planeWorkspaceSlug;
+        document.getElementById('simWorkspace').placeholder = cfg.planeWorkspaceSlug;
+      }
+
+    } catch (err) {
+      console.error('Lỗi load config:', err);
+    }
+  }
+
+  // ─── Load Logs ────────────────────────────────────────────────────────────
+  async function loadLogs() {
+    try {
+      const r = await fetch('/api/logs');
+      const logs = await r.json();
+
+      const container = document.getElementById('logsContainer');
+
+      // Update stats
+      const total = logs.length;
+      const success = logs.filter(l => l.status === 'success').length;
+      const errors = logs.filter(l => l.status === 'error').length;
+      document.getElementById('statTotal').textContent = total;
+      document.getElementById('statSuccess').textContent = success;
+      document.getElementById('statError').textContent = errors;
+
+      if (!logs.length) {
+        container.innerHTML = '<div class="log-empty">🕵️ Chưa có event nào. Đang chờ webhook từ Plane.so...</div>';
+        return;
+      }
+
+      const rows = logs.map(log => {
+        const statusBadge = log.status === 'success'
+          ? `<span class="badge badge-success">✅ OK</span>`
+          : log.status === 'error'
+            ? `<span class="badge badge-error">❌ Lỗi</span>`
+            : `<span class="badge badge-warn">⚠️ ${log.reason || log.status}</span>`;
+
+        const actionBadge = log.action
+          ? `<span class="badge badge-info">${log.action}</span>`
+          : '';
+
+        const time = log.timestamp
+          ? new Date(log.timestamp).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' })
+          : '—';
+
+        return `
+          <tr>
+            <td><code style="color:var(--text-secondary);font-size:0.78rem">${log.event || '—'}</code></td>
+            <td>${actionBadge}</td>
+            <td>${statusBadge}</td>
+            <td><code style="font-size:0.75rem;color:var(--text-muted)">${log.issueId ? log.issueId.slice(0,8)+'...' : '—'}</code></td>
+            <td style="color:var(--text-muted);font-size:0.78rem">${log.elapsed || '—'}</td>
+            <td style="color:var(--text-muted);font-size:0.78rem">${time}</td>
+          </tr>`;
+      }).join('');
+
+      container.innerHTML = `
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th>Event</th>
+              <th>Action</th>
+              <th>Trạng thái</th>
+              <th>Issue ID</th>
+              <th>Thời gian xử lý</th>
+              <th>Thời điểm</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>`;
+
+    } catch (err) {
+      console.error('Lỗi load logs:', err);
+    }
+  }
+
+  // ─── Server Health ─────────────────────────────────────────────────────────
+  async function checkHealth() {
+    try {
+      const r = await fetch('/health');
+      const data = await r.json();
+      document.getElementById('serverStatus').textContent = 'Server đang chạy';
+
+      const uptime = Math.floor(data.uptime);
+      const h = Math.floor(uptime / 3600);
+      const m = Math.floor((uptime % 3600) / 60);
+      const s = uptime % 60;
+      document.getElementById('statUptime').textContent =
+        h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+
+    } catch {
+      document.getElementById('serverStatus').textContent = '⚠️ Lỗi kết nối';
+    }
+  }
+
+  // ─── Test Discord ──────────────────────────────────────────────────────────
+  async function testDiscord() {
+    setLoading('btnTestDiscord', true);
+    try {
+      const r = await fetch('/api/test-discord', { method: 'POST' });
+      const data = await r.json();
+      if (data.success) {
+        showToast('success', 'Discord hoạt động! 🎉', data.message);
+      } else {
+        showToast('error', 'Kết nối Discord thất bại', data.error);
+      }
+    } catch (err) {
+      showToast('error', 'Lỗi', err.message);
+    } finally {
+      setLoading('btnTestDiscord', false);
+    }
+  }
+
+  // ─── Test Plane ────────────────────────────────────────────────────────────
+  async function testPlane() {
+    setLoading('btnTestPlane', true);
+    try {
+      const r = await fetch('/api/test-plane');
+      const data = await r.json();
+      if (data.success) {
+        const projectList = data.projects?.map(p => `• ${p.name} (${p.identifier})`).join('\n') || '';
+        showToast('success', 'Plane API hoạt động! ✈️', data.message);
+        if (data.projects?.length) {
+          console.log('Projects:', data.projects);
+        }
+      } else {
+        showToast('error', 'Kết nối Plane thất bại', data.error);
+      }
+    } catch (err) {
+      showToast('error', 'Lỗi', err.message);
+    } finally {
+      setLoading('btnTestPlane', false);
+    }
+  }
+
+  // ─── Simulate Event ────────────────────────────────────────────────────────
+  async function simulateEvent() {
+    const workspaceSlug = document.getElementById('simWorkspace').value.trim();
+    const projectId = document.getElementById('simProject').value.trim();
+    const issueId = document.getElementById('simIssue').value.trim();
+
+    if (!workspaceSlug || !projectId || !issueId) {
+      showToast('warn', 'Thiếu thông tin', 'Vui lòng điền đầy đủ Workspace, Project ID và Issue ID');
+      return;
+    }
+
+    setLoading('btnSimulate', true);
+    try {
+      const r = await fetch('/api/simulate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ workspaceSlug, projectId, issueId }),
+      });
+      const data = await r.json();
+      if (data.success) {
+        showToast('success', 'Đã gửi thông báo! 🎉', `Issue "${data.issue?.name}" → Discord`);
+        loadLogs();
+      } else {
+        showToast('error', 'Simulation thất bại', data.error);
+      }
+    } catch (err) {
+      showToast('error', 'Lỗi', err.message);
+    } finally {
+      setLoading('btnSimulate', false);
+    }
+  }
+
+  // ─── Init ─────────────────────────────────────────────────────────────────
+  async function init() {
+    await Promise.all([loadConfig(), loadLogs(), checkHealth()]);
+    // Auto-refresh mỗi 30s
+    setInterval(() => { loadLogs(); checkHealth(); }, 30000);
+  }
+
+  init();
+</script>
+</body>
+</html>
