@@ -38,6 +38,12 @@ function verifySignature(rawBody, signature) {
   const digest = hmac.digest("hex");
   const expectedSig = `sha256=${digest}`;
 
+  // Kiểm tra độ dài trước khi dùng timingSafeEqual để tránh crash (RangeError)
+  if (signature.length !== expectedSig.length) {
+    console.warn("[Webhook] ❌ Độ dài chữ ký không khớp");
+    return false;
+  }
+
   return crypto.timingSafeEqual(
     Buffer.from(signature),
     Buffer.from(expectedSig)
@@ -224,28 +230,75 @@ async function processEvent(body, eventType, action) {
     console.log("[Webhook] ✨ Xử lý event: Issue Created");
     await discordService.notifyIssueCreated({ ...fullData, workspaceSlug });
   } else if (action === "updated" || action === "update") {
-    // Chống spam: Nếu issue vừa được tạo trong vòng 60 giây, bỏ qua event update
+    // Chống spam: Nếu issue vừa được tạo trong vòng 10 giây, bỏ qua event update phụ
     const createdTime = new Date(fullData.issue.created_at).getTime();
-    if (Date.now() - createdTime < 60000) {
-      console.log("[Webhook] ⏭️ Bỏ qua event update vì work item vừa mới tạo (tránh spam 3 tin nhắn)");
+    if (Date.now() - createdTime < 10000) {
+      console.log("[Webhook] ⏭️ Bỏ qua event update vì work item vừa mới tạo (tránh spam nổ thông báo)");
       return;
     }
 
-    console.log("[Webhook] 🔄 Xử lý event: Issue Updated");
     const changedFields = extractChangedFields(body);
     if (changedFields.length === 0) {
       console.log("[Webhook] ⏭️ Bỏ qua event update vì không có thay đổi quan trọng");
       return;
     }
-    await discordService.notifyIssueUpdated({ ...fullData, workspaceSlug }, changedFields);
+
+    // Đẩy vào hàng đợi aggregator (gom nhóm)
+    bufferUpdateForIssue(fullData, workspaceSlug, projectId, issueId, changedFields);
   } else if (action === "deleted" || action === "delete") {
     console.log("[Webhook] 🗑️ Xử lý event: Issue Deleted (Người dùng yêu cầu bỏ thông báo)");
-    // Đã vô hiệu hóa thông báo Discord theo yêu cầu của user
-    // await handleIssueDeleted(body, fullData);
   } else {
     // Mặc định: coi như created
     console.log(`[Webhook] ℹ️ Action không xác định "${action}", coi như created`);
     await discordService.notifyIssueCreated(fullData);
+  }
+}
+
+/**
+ * CƠ CHẾ GOM NHÓM LỊCH SỬ THAY ĐỔI
+ * Chờ 5 giây sau lần update cuối cùng mới gửi 1 thể
+ */
+const pendingUpdates = new Map();
+
+function bufferUpdateForIssue(fullData, workspaceSlug, projectId, issueId, changedFields) {
+  const key = `${workspaceSlug}_${projectId}_${issueId}`;
+  
+  if (pendingUpdates.has(key)) {
+    const existing = pendingUpdates.get(key);
+    // Gộp data mới vào
+    for (const ch of changedFields) {
+      const idx = existing.changes.findIndex(e => e.field === ch.field);
+      if (idx >= 0) {
+        existing.changes[idx].new_value = ch.new_value; // Cập nhật mốc mới nhất
+      } else {
+        existing.changes.push(ch);
+      }
+    }
+    // Thay thế fullData bằng dữ liệu API update mới nhất
+    existing.fullData = fullData;
+    // Reset timer chờ thêm 5s nữa
+    clearTimeout(existing.timer);
+    existing.timer = setTimeout(() => flushUpdate(key), 5000);
+    console.log(`[Webhook] ⏳ Đã gom nhóm thêm thay đổi vào bộ đệm cho issue ${issueId}`);
+  } else {
+    const timer = setTimeout(() => flushUpdate(key), 5000);
+    pendingUpdates.set(key, { 
+      fullData, workspaceSlug, 
+      changes: changedFields, 
+      timer 
+    });
+    console.log(`[Webhook] ⏳ Bắt đầu gom nhóm các bản cập nhật nhỏ lẻ cho issue ${issueId}`);
+  }
+}
+
+async function flushUpdate(key) {
+  const data = pendingUpdates.get(key);
+  if (!data) return;
+  pendingUpdates.delete(key);
+  
+  if (data.changes.length > 0) {
+    console.log(`[Webhook] 🚀 Gửi tổng hợp cập nhật cho issue với ${data.changes.length} mục thay đổi`);
+    await discordService.notifyIssueUpdated({ ...data.fullData, workspaceSlug: data.workspaceSlug }, data.changes);
   }
 }
 
