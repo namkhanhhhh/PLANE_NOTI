@@ -369,10 +369,6 @@ async function sendToDiscord(embeds, content = null) {
     return true;
   } catch (err) {
     const errorData = err.response?.data;
-    if (err.response?.status === 429) {
-      console.error("[Discord] ⚠️ Bị chặn do Rate Limit (Gửi quá nhanh). Vui lòng đợi vài giây.");
-      throw new Error("Discord Rate Limit: Bạn đang gửi thông báo quá nhanh, hãy thử lại sau ít phút.");
-    }
     console.error(
       "[Discord] ❌ Lỗi khi gửi thông báo:",
       err.message,

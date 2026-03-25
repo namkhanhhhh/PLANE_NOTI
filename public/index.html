@@ -397,6 +397,12 @@
 
     .btn-accent { background: linear-gradient(135deg, var(--accent), #7c3aed); color: #fff; }
     .btn-discord { background: linear-gradient(135deg, var(--discord), #4752c4); color: #fff; }
+    .btn-excel {
+      background: linear-gradient(135deg, #1d6f42, #217346);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(33, 115, 70, 0.25);
+    }
+    .btn-excel:hover { box-shadow: 0 0 30px rgba(33, 115, 70, 0.45); }
     .btn-outline {
       background: transparent;
       border: 1px solid var(--border);
@@ -747,6 +753,28 @@
     </div>
   </div>
 
+  <!-- Work Progress Section -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-title">
+        <div class="icon icon-green">📊</div>
+        Work Progress — Danh sách công việc
+        <span id="wpBadge" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:var(--green);font-size:0.7rem;font-weight:600;padding:2px 9px;border-radius:100px;margin-left:4px">0</span>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-outline btn-sm" onclick="loadWorkItems()">🔄 Làm mới</button>
+        <button class="btn btn-excel btn-sm" id="btnExport" onclick="exportExcel()">
+          📥 Xuất Excel
+        </button>
+      </div>
+    </div>
+    <div class="card">
+      <div id="wpContainer">
+        <div class="log-empty">📭 Chưa có dữ liệu. Tạo work item trên project <strong>Work Progress</strong> để tự động thu thập.</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Event Log -->
   <div class="section">
     <div class="section-header">
@@ -1046,11 +1074,113 @@
     }
   }
 
+  // ─── Work Progress Items ───────────────────────────────────────────────────
+  const STATE_COLORS = {
+    'Hoàn thành': '#10b981', 'Completed': '#10b981',
+    'Đang thực hiện': '#6366f1', 'In Progress': '#6366f1', 'started': '#6366f1',
+    'Chờ xử lý': '#94a3b8', 'Backlog': '#94a3b8', 'backlog': '#94a3b8',
+    'Đã hủy': '#ef4444', 'Cancelled': '#ef4444',
+  };
+
+  function wpStateStyle(s) {
+    const c = STATE_COLORS[s] || '#94a3b8';
+    return `color:${c};font-weight:600;font-size:0.8rem`;
+  }
+
+  function fmtDate(d) {
+    if (!d) return '—';
+    const dt = new Date(d);
+    return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')}/${dt.getFullYear()}`;
+  }
+
+  function fmtEffort(days) {
+    if (!days) return '—';
+    return `${days} man-day${days > 1 ? 's' : ''}`;
+  }
+
+  async function loadWorkItems() {
+    try {
+      const r = await fetch('/api/work-items');
+      const data = await r.json();
+      const items = data.items || [];
+      document.getElementById('wpBadge').textContent = items.length;
+
+      const container = document.getElementById('wpContainer');
+      if (!items.length) {
+        container.innerHTML = '<div class="log-empty">📭 Chưa có dữ liệu. Tạo work item trên project <strong>Work Progress</strong> để tự động thu thập.</div>';
+        return;
+      }
+
+      const sorted = [...items].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0));
+      const rows = sorted.map((item, idx) => `
+        <tr>
+          <td style="text-align:center;color:var(--text-muted);font-size:0.8rem">${idx + 1}</td>
+          <td style="font-weight:500;max-width:280px">${item.name || '—'}</td>
+          <td style="text-align:center;color:var(--text-secondary)">${fmtEffort(item.effort_days)}</td>
+          <td style="text-align:center;color:var(--text-secondary)">${fmtEffort(item.effort_days)}</td>
+          <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent-light)">${fmtDate(item.due_date)}</td>
+          <td style="text-align:center;max-width:120px;color:var(--text-secondary)">${item.assignees || '—'}</td>
+          <td style="text-align:center"><span style="${wpStateStyle(item.state)}">${item.state || '—'}</span></td>
+          <td style="color:var(--text-muted);font-size:0.78rem;max-width:200px">${item.description ? item.description.slice(0,100)+(item.description.length>100?'…':'') : '—'}</td>
+        </tr>`);
+
+      container.innerHTML = `
+        <div style="overflow-x:auto">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th style="text-align:center">#</th>
+                <th>Đầu việc</th>
+                <th style="text-align:center">Ước tính NL (PDS)</th>
+                <th style="text-align:center">NL thực tế (PDS)</th>
+                <th style="text-align:center">Deadline</th>
+                <th style="text-align:center">Phụ trách</th>
+                <th style="text-align:center">Trạng thái</th>
+                <th>Ghi chú</th>
+              </tr>
+            </thead>
+            <tbody>${rows.join('')}</tbody>
+          </table>
+        </div>`;
+    } catch (err) {
+      console.error('Lỗi load work items:', err);
+    }
+  }
+
+  async function exportExcel() {
+    const btn = document.getElementById('btnExport');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang tạo...';
+    try {
+      const r = await fetch('/api/export-excel');
+      if (!r.ok) {
+        const err = await r.json();
+        showToast('error', 'Xuất Excel thất bại', err.error || 'Lỗi không xác định');
+        return;
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `work-items-${new Date().toISOString().slice(0,10)}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      showToast('success', 'Xuất thành công! 📊', 'File Excel đã được tải về máy của bạn.');
+    } catch (err) {
+      showToast('error', 'Lỗi', err.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📥 Xuất Excel';
+    }
+  }
+
   // ─── Init ─────────────────────────────────────────────────────────────────
   async function init() {
-    await Promise.all([loadConfig(), loadLogs(), checkHealth()]);
+    await Promise.all([loadConfig(), loadLogs(), checkHealth(), loadWorkItems()]);
     // Auto-refresh mỗi 30s
-    setInterval(() => { loadLogs(); checkHealth(); }, 30000);
+    setInterval(() => { loadLogs(); checkHealth(); loadWorkItems(); }, 30000);
   }
 
   init();

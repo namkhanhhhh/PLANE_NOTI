@@ -15,6 +15,8 @@ const fs = require("fs");
 const { handleWebhook, getEventLog } = require("./src/webhookHandler");
 const discordService = require("./src/discordService");
 const planeService = require("./src/planeService");
+const eventStore = require("./src/eventStore");
+const excelService = require("./src/excelService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -47,13 +49,6 @@ app.use((req, _res, next) => {
 // Webhook endpoint (Plane.so → đây)
 // ─────────────────────────────────────────────
 app.post("/webhook", handleWebhook);
-app.get("/webhook", (_req, res) => {
-  res.json({
-    status: "READY",
-    message: "Webhook endpoint is active. Use POST for actual webhooks.",
-    integration: "Plane.so -> Discord"
-  });
-});
 
 // ─────────────────────────────────────────────
 // API Endpoints cho Dashboard
@@ -201,6 +196,35 @@ app.post("/api/simulate", async (req, res) => {
       },
     });
   } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────
+// Work Items Store API (dành cho project Work Progress)
+// ─────────────────────────────────────────────
+
+// Lấy danh sách tất cả work items đã lưu
+app.get("/api/work-items", (_req, res) => {
+  const items = eventStore.getAllWorkItems();
+  res.json({ success: true, total: items.length, items });
+});
+
+// Xuất file Excel
+app.get("/api/export-excel", async (req, res) => {
+  try {
+    const items = eventStore.getAllWorkItems();
+    if (items.length === 0) {
+      return res.status(404).json({ success: false, error: "Chưa có dữ liệu để xuất" });
+    }
+    const projectName = req.query.project || "Work Progress";
+    const buffer = await excelService.generateExcel(items, projectName);
+    const filename = `work-items-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(buffer);
+  } catch (err) {
+    console.error("[Excel] Lỗi tạo file:", err.message);
     res.status(500).json({ success: false, error: err.message });
   }
 });
