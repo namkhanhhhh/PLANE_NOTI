@@ -762,7 +762,11 @@
         <span id="wpBadge" style="background:rgba(16,185,129,0.12);border:1px solid rgba(16,185,129,0.25);color:var(--green);font-size:0.7rem;font-weight:600;padding:2px 9px;border-radius:100px;margin-left:4px">0</span>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-        <button class="btn btn-outline btn-sm" onclick="loadWorkItems()">🔄 Làm mới</button>
+        <button class="btn btn-outline btn-sm" id="btnRefreshWp" onclick="loadWorkItems(true)">🔄 Làm mới</button>
+        <button class="btn btn-sm" id="btnClearWp" onclick="clearWorkItems()"
+          style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);color:var(--red);">
+          🗑️ Xóa dữ liệu
+        </button>
         <button class="btn btn-excel btn-sm" id="btnExport" onclick="exportExcel()">
           📥 Xuất Excel
         </button>
@@ -1098,9 +1102,14 @@
     return `${days} man-day${days > 1 ? 's' : ''}`;
   }
 
-  async function loadWorkItems() {
+  async function loadWorkItems(manual = false) {
+    if (manual) {
+      const btn = document.getElementById('btnRefreshWp');
+      if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+    }
     try {
-      const r = await fetch('/api/work-items');
+      const r = await fetch('/api/work-items?t=' + Date.now());
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data = await r.json();
       const items = data.items || [];
       document.getElementById('wpBadge').textContent = items.length;
@@ -1108,6 +1117,7 @@
       const container = document.getElementById('wpContainer');
       if (!items.length) {
         container.innerHTML = '<div class="log-empty">📭 Chưa có dữ liệu. Tạo work item trên project <strong>Work Progress</strong> để tự động thu thập.</div>';
+        if (manual) showToast('info', 'Không có dữ liệu', 'Chưa có work item nào từ project Work Progress.');
         return;
       }
 
@@ -1142,8 +1152,42 @@
             <tbody>${rows.join('')}</tbody>
           </table>
         </div>`;
+
+      if (manual) showToast('success', 'Đã làm mới!', `Hiển thị ${items.length} work item.`);
     } catch (err) {
       console.error('Lỗi load work items:', err);
+      if (manual) showToast('error', 'Lỗi tải dữ liệu', err.message);
+    } finally {
+      if (manual) {
+        const btn = document.getElementById('btnRefreshWp');
+        if (btn) { btn.disabled = false; btn.textContent = '🔄 Làm mới'; }
+      }
+    }
+  }
+
+  async function clearWorkItems() {
+    const confirmed = confirm(
+      '⚠️ Xác nhận xóa?\n\nToàn bộ dữ liệu work item đã thu thập sẽ bị xóa vĩnh viễn.\nHệ thống sẽ bắt đầu thu thập lại từ đầu.'
+    );
+    if (!confirmed) return;
+
+    const btn = document.getElementById('btnClearWp');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang xóa...';
+    try {
+      const r = await fetch('/api/work-items', { method: 'DELETE' });
+      const data = await r.json();
+      if (data.success) {
+        showToast('success', 'Đã xóa thành công!', 'Dữ liệu đã được xóa. Hệ thống sử sàng thu thập lại.');
+        await loadWorkItems();
+      } else {
+        showToast('error', 'Xóa thất bại', data.error || 'Lỗi không xác định');
+      }
+    } catch (err) {
+      showToast('error', 'Lỗi', err.message);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🗑️ Xóa dữ liệu';
     }
   }
 

@@ -127,6 +127,15 @@ function getAllWorkItems() {
 }
 
 /**
+ * Xóa toàn bộ dữ liệu - bắt đầu lại từ đầu
+ */
+function clearAll() {
+  _events = [];
+  saveEvents(_events);
+  console.log("[EventStore] 🗑️ Đã xóa toàn bộ dữ liệu work items");
+}
+
+/**
  * Reload từ file (dùng khi khởi động)
  */
 function reload() {
@@ -134,4 +143,4 @@ function reload() {
   return _events;
 }
 
-module.exports = { upsertWorkItem, getAllWorkItems, reload };
+module.exports = { upsertWorkItem, getAllWorkItems, clearAll, reload };

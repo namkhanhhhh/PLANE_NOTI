@@ -206,8 +206,15 @@ app.post("/api/simulate", async (req, res) => {
 
 // Lấy danh sách tất cả work items đã lưu
 app.get("/api/work-items", (_req, res) => {
+  res.set("Cache-Control", "no-store");
   const items = eventStore.getAllWorkItems();
   res.json({ success: true, total: items.length, items });
+});
+
+// Xóa toàn bộ dữ liệu store → bắt đầu lại từ đầu
+app.delete("/api/work-items", (_req, res) => {
+  eventStore.clearAll();
+  res.json({ success: true, message: "Đã xóa toàn bộ dữ liệu. Hệ thống sẵn sàng thu thập lại." });
 });
 
 // Xuất file Excel
