@@ -1123,15 +1123,22 @@
 
       const sorted = [...items].sort((a, b) => (a.sequence_id || 0) - (b.sequence_id || 0));
       const rows = sorted.map((item, idx) => `
-        <tr>
+        <tr id="wp-row-${item.id}">
           <td style="text-align:center;color:var(--text-muted);font-size:0.8rem">${idx + 1}</td>
-          <td style="font-weight:500;max-width:280px">${item.name || '—'}</td>
+          <td style="font-weight:500;max-width:260px">${item.name || '—'}</td>
           <td style="text-align:center;color:var(--text-secondary)">${fmtEffort(item.effort_days)}</td>
           <td style="text-align:center;color:var(--text-secondary)">${fmtEffort(item.effort_days)}</td>
           <td style="text-align:center;font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:var(--accent-light)">${fmtDate(item.due_date)}</td>
           <td style="text-align:center;max-width:120px;color:var(--text-secondary)">${item.assignees || '—'}</td>
           <td style="text-align:center"><span style="${wpStateStyle(item.state)}">${item.state || '—'}</span></td>
           <td style="color:var(--text-muted);font-size:0.78rem;max-width:200px">${item.description ? item.description.slice(0,100)+(item.description.length>100?'…':'') : '—'}</td>
+          <td style="text-align:center">
+            <button onclick="deleteWorkItem('${item.id}', this)" title="Xóa work item này"
+              style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:var(--red);border-radius:6px;padding:3px 8px;cursor:pointer;font-size:0.82rem;transition:all 0.2s"
+              onmouseover="this.style.background='rgba(239,68,68,0.25)'" onmouseout="this.style.background='rgba(239,68,68,0.1)'">
+              🗑️
+            </button>
+          </td>
         </tr>`);
 
       container.innerHTML = `
@@ -1147,6 +1154,7 @@
                 <th style="text-align:center">Phụ trách</th>
                 <th style="text-align:center">Trạng thái</th>
                 <th>Ghi chú</th>
+                <th style="text-align:center;width:50px"></th>
               </tr>
             </thead>
             <tbody>${rows.join('')}</tbody>
@@ -1162,6 +1170,37 @@
         const btn = document.getElementById('btnRefreshWp');
         if (btn) { btn.disabled = false; btn.textContent = '🔄 Làm mới'; }
       }
+    }
+  }
+
+  async function deleteWorkItem(id, btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳';
+    try {
+      const r = await fetch(`/api/work-items/${id}`, { method: 'DELETE' });
+      const data = await r.json();
+      if (data.success) {
+        // Xóa dòng khỏi bảng ngay lập tức với animation
+        const row = document.getElementById(`wp-row-${id}`);
+        if (row) {
+          row.style.transition = 'opacity 0.3s, transform 0.3s';
+          row.style.opacity = '0';
+          row.style.transform = 'translateX(-20px)';
+          setTimeout(() => row.remove(), 300);
+        }
+        // Cập nhật badge số lượng
+        const badge = document.getElementById('wpBadge');
+        if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent) - 1);
+        showToast('success', 'Đã xóa!', 'Work item đã được gỡ khỏi danh sách.');
+      } else {
+        showToast('error', 'Xóa thất bại', data.error);
+        btn.disabled = false;
+        btn.textContent = '🗑️';
+      }
+    } catch (err) {
+      showToast('error', 'Lỗi', err.message);
+      btn.disabled = false;
+      btn.textContent = '🗑️';
     }
   }
 

@@ -127,6 +127,20 @@ function getAllWorkItems() {
 }
 
 /**
+ * Xóa một work item theo ID
+ */
+function deleteById(id) {
+  const before = _events.length;
+  _events = _events.filter(e => e.id !== id);
+  if (_events.length < before) {
+    saveEvents(_events);
+    console.log(`[EventStore] 🗑️ Đã xóa work item: ${id}`);
+    return true;
+  }
+  return false; // Không tìm thấy
+}
+
+/**
  * Xóa toàn bộ dữ liệu - bắt đầu lại từ đầu
  */
 function clearAll() {
@@ -143,4 +157,4 @@ function reload() {
   return _events;
 }
 
-module.exports = { upsertWorkItem, getAllWorkItems, clearAll, reload };
+module.exports = { upsertWorkItem, getAllWorkItems, deleteById, clearAll, reload };

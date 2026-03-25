@@ -217,6 +217,17 @@ app.delete("/api/work-items", (_req, res) => {
   res.json({ success: true, message: "Đã xóa toàn bộ dữ liệu. Hệ thống sẵn sàng thu thập lại." });
 });
 
+// Xóa một work item cụ thể theo ID
+app.delete("/api/work-items/:id", (req, res) => {
+  const { id } = req.params;
+  const deleted = eventStore.deleteById(id);
+  if (deleted) {
+    res.json({ success: true, message: `Đã xóa work item ${id}` });
+  } else {
+    res.status(404).json({ success: false, error: "Không tìm thấy work item" });
+  }
+});
+
 // Xuất file Excel
 app.get("/api/export-excel", async (req, res) => {
   try {

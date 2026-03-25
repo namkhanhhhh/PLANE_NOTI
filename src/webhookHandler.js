@@ -222,7 +222,20 @@ async function processEvent(body, eventType, action) {
     return;
   }
 
-  // Chống lặp (duplicate) cho TẤT CẢ event nhận được liên tiếp
+  // ─── PHÂN LUỒNG SỚM: project Store-only → upsert ngay, KHÔNG qua duplicate check ───
+  const projectName = fullData.project?.name || "";
+  const projectIdentifier = fullData.project?.identifier || "";
+  if (isStoreOnlyProject(projectName, projectIdentifier)) {
+    if (action === "deleted" || action === "delete") {
+      console.log(`[Webhook] 📂 Store-only: bỏ qua event xóa (không xóa khỏi store)`);
+      return;
+    }
+    console.log(`[Webhook] 📂 Project "${projectName}" → lưu vào store (action: ${action || "created"})`);
+    eventStore.upsertWorkItem({ ...fullData, workspaceSlug, _action: action || "created" });
+    return;
+  }
+
+  // Chống lặp (duplicate) chỉ áp dụng cho các project gửi Discord
   const cacheKey = `${issueId}_${action || "created"}`;
   const lastProcessed = processedEvents.get(cacheKey);
   if (lastProcessed && Date.now() - lastProcessed < 15000) {
@@ -230,17 +243,6 @@ async function processEvent(body, eventType, action) {
     return;
   }
   processedEvents.set(cacheKey, Date.now());
-
-  // ─── PHÂN LUỒNG: project "Work Progress" → lưu store, KHÔNG gửi Discord ───
-  const projectName = fullData.project?.name || "";
-  const projectIdentifier = fullData.project?.identifier || "";
-  if (isStoreOnlyProject(projectName, projectIdentifier)) {
-    console.log(`[Webhook] 📂 Project "${projectName}" thuộc danh sách Store-only → lưu vào event store, bỏ qua Discord`);
-    if (action !== "deleted" && action !== "delete") {
-      eventStore.upsertWorkItem({ ...fullData, workspaceSlug, _action: action || "created" });
-    }
-    return;
-  }
 
   // Điều hướng theo action (gửi Discord cho các project còn lại)
   if (action === "created" || action === "create" || action === "") {
